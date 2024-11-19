@@ -38,6 +38,15 @@ Main Python librairies
   5. google.oauth2.credentials (to read uploaded Excel)
   6. googleapiclient (to read uploaded Excel)
   7. openpyxl (to read uploaded Excel)
+
+## Workflow
+
+ ```mermaid
+flowchart LR;
+   A[Google sheet] -->|Command parser 1| C[Django API]
+   B[Excel in google cloud] -->|Command parser 2| C[Django API]
+   C[Django API] -->|command parser 3| D[ElasticSearch index]
+```
  
 ## contact persons
 Franck Theeten : Africamuseum Belgiuem (franck.theeten@africamuseum.be)
