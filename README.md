@@ -113,7 +113,8 @@ cetaf_api_collections_normalized-->cetaf_api_institutions_normalized
 cetaf_api_collections-->cetaf_api_institutions_normalized
 cetaf_api_collections-->cetaf_api_collections_normalized
   ```
-## current access points (dev) :
+## Current access points (dev) :
+So far (nov. 2024 only the institutions and colelctions parts are functionnal) 
 1. List all **institutions** (note the paging mechanism)
    1. https://naturalheritage.africamuseum.be/cetaf_survey_api/institutions/?operation=list
    2. https://naturalheritage.africamuseum.be/cetaf_survey_api/institutions/?operation=list&size=2&page=2
