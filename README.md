@@ -117,9 +117,10 @@ cetaf_api_collections-->cetaf_api_collections_normalized
    1. https://naturalheritage.africamuseum.be/cetaf_survey_api/institutions/?operation=list
    2. https://naturalheritage.africamuseum.be/cetaf_survey_api/institutions/?operation=list&size=2&page=2
 2. get institution by identifiers (bot the possibilty to change the protocols) :
-   1 :  https://naturalheritage.africamuseum.be/cetaf_survey_api/institutions/?operation=get_by_id&protocol=ror&values=02v6zg374
-   2 : https://naturalheritage.africamuseum.be/cetaf_survey_api/institutions/?operation=get_by_id&protocol=grscicoll&values=LMOB
-   3 : Parameer has path via .htaccess or rewriterule :https://naturalheritage.africamuseum.be/cetaf/api/institutions/ror/02v6zg374
+   1.  https://naturalheritage.africamuseum.be/cetaf_survey_api/institutions/?operation=get_by_id&protocol=ror&values=02v6zg374
+   2. https://naturalheritage.africamuseum.be/cetaf_survey_api/institutions/?operation=get_by_id&protocol=grscicoll&values=LMOB
+   3. https://naturalheritage.africamuseum.be/cetaf_survey_api/institutions/?operation=get_by_id&protocol=index_herbarium&values=LI
+   4. Parameter has path via .htaccess or rewriterule :https://naturalheritage.africamuseum.be/cetaf/api/institutions/ror/02v6zg374
 4. Fuzzy query (institutions):
    1. https://naturalheritage.africamuseum.be/cetaf_survey_api/institutions/?operation=query_str&q=wien
 5: list of collections :
