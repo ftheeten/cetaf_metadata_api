@@ -59,8 +59,60 @@ Linked Django commands (via shell at the root of the project - **manage.py** lev
    1.  **python manage.py copy_es --target_index institutions** pushes institutions to target ElasticSearch
    2.  **python manage.py copy_es --target_index collections** pushes collections to target ElasticSearch    
       
-       
- 
+  ## Model     
+  ```mermaid
+  classDiagram
+class cetaf_api_institutions_normalized{
+       -pk
+       -uuid
+       -data:jsonb (identifier list)
+       -creation_date:timestamp
+       -modification_date:timestamp
+  }
+ class cetaf_api_collections_normalized{
+       -pk       
+       -uuid
+       -fk_institution_normalized:int
+       -uuid_institution_normalized
+       -data:jsonb (identifier list)
+       -creation_date:timestamp
+       -modification_date:timestamp
+  }
+  class cetaf_api_institutions{
+       -pk
+       -uuid
+       -fk_institution_normalized: int
+       -uuid_institution_normalized
+       -cetaf_identifier
+       -data:jsonb
+       -harvesting_date:timestamp
+       -creation_date:timestamp
+       -is_current:boolean
+       -version:int
+  }
+class cetaf_api_collections{
+       -pk
+       -uuid
+       -fk_institution_normalized: int
+       -uuid_institution_normalized
+       -fk_collection_normalized: int
+       -uuid_collection_normalized
+       -cetaf_identifier
+       -data:jsonb
+       -harvesting_date:timestamp
+       -creation_date:timestamp
+       -is_current:boolean
+       -version:int
+       -source_uri:varchar
+  }
+
+
+cetaf_api_institutions-->cetaf_api_institutions_normalized
+cetaf_api_collections_normalized-->cetaf_api_institutions_normalized
+cetaf_api_collections-->cetaf_api_institutions_normalized
+cetaf_api_collections-->cetaf_api_collections_normalized
+  ```
+
 ## contact persons
 Franck Theeten : Africamuseum Belgiuem (franck.theeten@africamuseum.be)
 
