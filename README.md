@@ -14,6 +14,7 @@ Data are exposed through an API (not trully a REST but JSON over HTTP).
    3. Grid
    4. Wikidata
    5. CETAF specific identifiers (eg. BE-RBINS, FR-CIRAD, ES-ICM-CSIC)
+   6. Index Herbarium
 3. The API will expose the following types of object
    1. Institutions (location, contact coordinates, summary of the collections and their size)
    2. Collections (with link to parent institutions, taxonomic scope)
@@ -113,21 +114,28 @@ cetaf_api_collections-->cetaf_api_institutions_normalized
 cetaf_api_collections-->cetaf_api_collections_normalized
   ```
 ## current access points (dev) :
-1. List all instutitons (note the paging mechanism)
+1. List all **institutions** (note the paging mechanism)
    1. https://naturalheritage.africamuseum.be/cetaf_survey_api/institutions/?operation=list
    2. https://naturalheritage.africamuseum.be/cetaf_survey_api/institutions/?operation=list&size=2&page=2
-2. get institution by identifiers (bot the possibilty to change the protocols) :
+2. get **institutions** by identifiers (bot the possibilty to change the protocols) :
    1.  https://naturalheritage.africamuseum.be/cetaf_survey_api/institutions/?operation=get_by_id&protocol=ror&values=02v6zg374
    2. https://naturalheritage.africamuseum.be/cetaf_survey_api/institutions/?operation=get_by_id&protocol=grscicoll&values=LMOB
    3. https://naturalheritage.africamuseum.be/cetaf_survey_api/institutions/?operation=get_by_id&protocol=index_herbarium&values=LI
    4. Parameter has path via .htaccess or rewriterule :https://naturalheritage.africamuseum.be/cetaf/api/institutions/ror/02v6zg374
-4. Fuzzy query (institutions):
+4. Fuzzy query (**institutions**):
    1. https://naturalheritage.africamuseum.be/cetaf_survey_api/institutions/?operation=query_str&q=wien
-5: list of collections :
-   1. https://naturalheritage.africamuseum.be/cetaf_survey_api/collections/?operation=list&size=100 
-Elasricsearch instituttions
-     
-## contact persons
-Franck Theeten : Africamuseum Belgiuem (franck.theeten@africamuseum.be)
+5. list of **collections** :
+   1. https://naturalheritage.africamuseum.be/cetaf_survey_api/collections/?operation=list&size=100
+6. **collections** by collectiob identifier :
+   1. https://naturalheritage.africamuseum.be/cetaf_survey_api/collections/?operation=get_by_id&protocol=cetaf&values=BE-MBG%20-%20Algae,%20Fungi,%20Plants%20(Old%20Botany)
+ 7 **collections** by identifier of the parent institution
+   1. https://naturalheritage.africamuseum.be/cetaf_survey_api/collections/?operation=get_by_institution_id&protocol=wikidata&values=Q655542
 
-Patrick Semal : Head of colelction, RBINS, Belgium (p.semal@africamuseum.be)
+Elasticsearch institutions https://naturalheritage.africamuseum.be/cetaf_dissco_institutions_dev 
+
+Elasticsearch collections https://naturalheritage.africamuseum.be/cetaf_dissco_collections_dev   
+
+## contact persons
+Franck Theeten : Africamuseum Belgium (franck.theeten@africamuseum.be)
+
+Patrick Semal : Head of collection, RBINS, Belgium (p.semal@africamuseum.be)
