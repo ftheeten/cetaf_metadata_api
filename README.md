@@ -8,7 +8,7 @@ Data are exposed through an API (not trully a REST but JSON over HTTP).
 
 ## Requirements
 1. This API can keep an history with the differen versions of data, by presenting the most recent ones by default. 
-2. The API can expose the different existing identifiers for collections and instutitons, and use them as resolver or query arguments :
+2. The API can expose the different existing identifiers for collections and institutions, and use them as resolver or query arguments :
    1. ROR
    2. GrSCiCOLL (GBIF)
    3. Grid
@@ -54,7 +54,7 @@ Linked Django commands (via shell at the root of the project - **manage.py** lev
 2. *Command parser 2*
    1. **python3 manage.py loadindb --extra_apis  institution_overview** (load institutions from Google Sheet, by default do nothing if more recent data in DB)
    2. **python3 manage.py loadindb --extra_apis  institution_overview --force true** (load institutions from Google Sheet, force Google sheet data as being the most recent)
-   3. **python manage.py loadindb --extra_apis  grscicoll_institutions grscicoll_collections_from_institutions** (loads institutions from GogoleSheet, if the GRSciColl ID is given get metadata from GriSciColl (grscicoll_institutions) and  forces the cration of the declared collections (grscicoll_collections_from_institutions)
+   3. **python manage.py loadindb --extra_apis  grscicoll_institutions grscicoll_collections_from_institutions** (loads institutions from GoogleSheet, if the GRSciColl ID is given get metadata from GriSciColl (grscicoll_institutions) and  forces the cration of the declared collections (grscicoll_collections_from_institutions)
    4. **python3 manage.py loadindb --extra_apis  collection_overview** create collections from the summary wssheet of the institutions
 3. *Command parser 3*
    1.  **python manage.py copy_es --target_index institutions** pushes institutions to target ElasticSearch
@@ -114,11 +114,11 @@ cetaf_api_collections-->cetaf_api_institutions_normalized
 cetaf_api_collections-->cetaf_api_collections_normalized
   ```
 ## Current access points (dev) :
-So far (nov. 2024 only the institutions and colelctions parts are functionnal) 
+So far (nov. 2024 only the institutions and collections parts are functionnal) 
 1. List all **institutions** (note the paging mechanism)
    1. https://naturalheritage.africamuseum.be/cetaf_survey_api/institutions/?operation=list
    2. https://naturalheritage.africamuseum.be/cetaf_survey_api/institutions/?operation=list&size=2&page=2
-2. get **institutions** by identifiers (bot the possibilty to change the protocols) :
+2. get **institutions** by identifiers (note the possibilty to change the protocols) :
    1.  https://naturalheritage.africamuseum.be/cetaf_survey_api/institutions/?operation=get_by_id&protocol=ror&values=02v6zg374
    2. https://naturalheritage.africamuseum.be/cetaf_survey_api/institutions/?operation=get_by_id&protocol=grscicoll&values=LMOB
    3. https://naturalheritage.africamuseum.be/cetaf_survey_api/institutions/?operation=get_by_id&protocol=index_herbarium&values=LI
