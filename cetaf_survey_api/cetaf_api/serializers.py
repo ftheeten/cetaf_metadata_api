@@ -9,4 +9,4 @@ class InstitutionSerializer(serializers.ModelSerializer):
 class CollectionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Collections
-        fields = ['uuid', 'uuid_institution_normalized','uuid_collection_normalized', 'current', 'version','identifier', 'data','modification_date']
+        fields = ['uuid', 'uuid_institution_normalized','uuid_collection_normalized', 'current', 'version','identifier', 'local_identifier', 'data','modification_date']

@@ -29,8 +29,12 @@ import pandas as pnd
 from .models import Institutions, Collections
 from .serializers import InstitutionSerializer, CollectionSerializer
 from django.db.models.expressions import RawSQL
+from django.db import connection
+from django.forms.models import model_to_dict
 from urllib.parse import unquote
 import math 
+
+from .parser.json_filter_path import JSONFilterPath
 
 
 #TO GET TOKEN
@@ -101,14 +105,31 @@ class APIViewCetaf(APIView):
         else: 
             count_all=0
         nb_pages=math.ceil(count_all/page_size)
-        if page>nb_pages :
+        if page>nb_pages and count_all>0 :
             raise PagerException(Exception("page above upper limit"))
         elif page<0:
             raise PagerException(Exception("page below lower limit"))
         data2=p_serializer(data1, many=True).data
         resp={"pager":{"page":page, "page_size":len(data2), "size": count_all }, "data": data2}
         return resp
-        
+    
+
+    def get_custom_sql(self, wrap_query, params, p_order, p_page, p_size):
+        cursor = connection.cursor()
+        offset=(p_page-1)*p_size
+        params.append(p_order)
+        params.append(str(p_size))
+        params.append(str(offset))        
+        params=tuple(params)  
+        wrap_query=wrap_query + " ORDER BY %s LIMIT %s OFFSET %s"       
+        query=wrap_query % params        
+        cursor.execute(query)
+        desc = cursor.description 
+        data=cursor.fetchall()
+        rows=[dict(zip([col[0] for col in desc], row)) for row in  data]      
+        resp={"pager":{"page":p_page, "page_size":p_size, "size": len(rows) }, "data": rows}
+        return resp
+
 class WSIInstitutionsView(APIViewCetaf):
 
     gs_auth_file=settings.GOOGLE_AUTH_FILE
@@ -122,9 +143,7 @@ class WSIInstitutionsView(APIViewCetaf):
     
 
         
-    def get(self, request, *args, **kwargs):
-        
-        
+    def get(self, request, *args, **kwargs):        
         data={}
         params_tmp=request.GET.urlencode()
         params=[]
@@ -132,8 +151,12 @@ class WSIInstitutionsView(APIViewCetaf):
         if len(params_tmp)>0:
             params=parse_qs(params_tmp)
             #return JsonResponse(params, safe=False)
-        operation=params["operation"] or []
         
+        source="all"
+        if "source" in params:
+            if len(params["source"])>0:
+                source=(params["source"][0]).lower().strip()
+                
         page_size=settings.DEFAULT_QUERY_SIZE or 10
         if "size" in params:
             if len(params["size"])>0:
@@ -144,22 +167,56 @@ class WSIInstitutionsView(APIViewCetaf):
             if len(params["page"])>0:
                 page=int(params["page"][0])
                 
+        
+         
+        #current/all/number
+        if not "version" in params:
+            params["version"]="current"
+        
+            
+            
+        for k, v in  params.items():
+            if isinstance(v, str):
+                params[k]=params[k].lower()   
         #offset=(page-1)*page_size
-        #limit=offset+page_size      
+        #limit=offset+page_size 
+        operation=params["operation"] or []        
         if len(operation)>0:
             operation=operation[0]
             #return JsonResponse({"debug2":str(operation)}, safe=False)
         if operation=="list":
-            q=Institutions.objects.filter(current=True)
-            resp=self.pager( q,  InstitutionSerializer, page, page_size)
+            if source=="all":
+                q=Institutions.objects.filter(current=True)
+                resp=self.pager( q,  InstitutionSerializer, page, page_size)
+            else:
+                resp=self.get_custom_sql("SELECT  \
+ uuid, uuid_institution_normalized, identifier, \
+jsonb_set(jsonb_set(data, '{data_list}', '[]'), '{data_list, 0}' , o.obj)::json data \
+  FROM public.cetaf_api_institutions d \
+cross join lateral jsonb_array_elements(d.data->'data_list') o(obj) \
+where (o.obj->>'source')='%s'", [source],  "uuid",page, page_size )            
             return JsonResponse(resp, safe=False)
+            
         if operation=="get_by_id" and "protocol" in params and "values" in params:
             if len(params["protocol"])>0 and len(params["values"])>0:
                 protocol=unquote(params["protocol"][0])
                 value=unquote(params["values"][0])
-                q=Institutions.objects.extra(where=["uuid in (select d.uuid  FROM cetaf_api_institutions d cross join lateral jsonb_array_elements(d.data->'list_identifiers') o(obj) where (o.obj->>'type')=%s and  (o.obj->>'value')=%s)"], params=(protocol, value))
-                resp=self.pager( q,  InstitutionSerializer, page, page_size)
-                return JsonResponse(resp, safe=False)        
+                if source=="all":
+                    q=Institutions.objects.extra(where=["uuid in (select d.uuid  FROM cetaf_api_institutions d cross join lateral jsonb_array_elements(d.data->'list_identifiers') o(obj) where (o.obj->>'type')=%s and  (o.obj->>'value')=%s)"], params=(protocol, value))
+                    resp=self.pager( q,  InstitutionSerializer, page, page_size)
+                else:
+                    resp=self.get_custom_sql("WITH a AS (\
+                    SELECT cetaf_api_institutions.* FROM cetaf_api_institutions WHERE uuid IN (SELECT d.uuid FROM cetaf_api_institutions d CROSS JOIN LATERAL jsonb_array_elements(d.data->'list_identifiers') o(obj) WHERE (o.obj->>'type')='%s' AND  (o.obj->>'value')='%s') )\
+                    SELECT  \
+ uuid, uuid_institution_normalized, identifier, \
+jsonb_set(jsonb_set(data, '{data_list}', '[]'), '{data_list, 0}' , o.obj)::json data \
+  FROM  a \
+cross join lateral jsonb_array_elements(a.data->'data_list') o(obj) \
+where (o.obj->>'source')='%s'\
+                    ", [ protocol, value, source],  "uuid",page, page_size ) 
+                
+                return JsonResponse(resp, safe=False)  
+                
         if operation=="query_str" and "q" in params:
             if len(params["q"]):
                 p=params["q"][0]
@@ -169,6 +226,7 @@ class WSIInstitutionsView(APIViewCetaf):
                     return JsonResponse({"pager": {'page':page, 'page_size': page_size, 'size':0}}, safe=False)
                 resp=self.pager( q,  InstitutionSerializer, page, page_size)
                 return JsonResponse(resp, safe=False)
+                
         else:
             return JsonResponse({"debug":type(operation)}, safe=False)
         return JsonResponse(data, safe=False)
@@ -206,9 +264,19 @@ class WSICollectionsView(APIViewCetaf):
         resp={"pager":{"page":page, "page_size":len(data2), "size": count_all }, "data": data2}
         return resp
         
-    def get(self, request, *args, **kwargs):
+    def filter_by_profile(self, data, profile=""):        
+        if len(profile)>0:
+            if profile in settings.JSON_OUTPUT_FILTER_PROFILE:  
+                tmp=data["data"]
+                returned=[]
+                paths=settings.JSON_OUTPUT_FILTER_PROFILE[profile]
+                for d in tmp:
+                    parser_filter=JSONFilterPath(d, paths)
+                    returned.append(parser_filter.parse())
+                data["data"]=returned        
+        return data
         
-        
+    def get(self, request, *args, **kwargs):        
         data={}
         params_tmp=request.GET.urlencode()
         params=[]
@@ -228,24 +296,51 @@ class WSICollectionsView(APIViewCetaf):
             if len(params["page"])>0:
                 page=int(params["page"][0])
                 
+                
+         #current/all/number
+        if not "version" in params:
+            params["version"]=["current"]
+        
+        #profile
+        profile=""
+        if "profile" in params:
+            if len(params["profile"])>0:
+                profile=params["profile"][0]    
+            
+        for k, v in  params.items():
+            if isinstance(v, str):
+                params[k]=params[k].lower() 
+        
+        
         #offset=(page-1)*page_size
         #limit=offset+page_size      
         if len(operation)>0:
             operation=operation[0]
             #return JsonResponse({"debug2":str(operation)}, safe=False)
+        
         if operation=="list":
             q=Collections.objects.filter(current=True)
             resp=self.pager( q,  CollectionSerializer, page, page_size)
             return JsonResponse(resp, safe=False)
-        if operation=="get_by_id" and "protocol" in params and "values" in params:
+        elif operation=="get_by_id" and "protocol" in params and "values" in params:            
             if len(params["protocol"])>0 and len(params["values"])>0:
                 protocol=unquote(params["protocol"][0])
                 value=unquote(params["values"][0])
-                
-                q=Collections.objects.extra(where=["uuid in (select d.uuid  FROM cetaf_api_collections d cross join lateral jsonb_array_elements(d.data->'list_identifiers') o(obj) where (o.obj->>'type')=%s and  (o.obj->>'value')=%s)"], params=(protocol, value))
-                resp=self.pager( q,  CollectionSerializer, page, page_size)
-                return JsonResponse(resp, safe=False)
-        if operation=="get_by_institution_id" and "protocol" in params and "values" in params:
+                version=unquote(params["version"][0])
+                if version=="current":                
+                    q=Collections.objects.extra(where=["uuid in (select d.uuid  FROM cetaf_api_collections d cross join lateral jsonb_array_elements(d.data->'list_identifiers') o(obj) where (o.obj->>'type')=%s and  (o.obj->>'value')=%s) AND current IS true"], params=(protocol, value))
+                    resp=self.pager( q,  CollectionSerializer, page, page_size)
+                    return JsonResponse(self.filter_by_profile(resp, profile), safe=False)
+                elif version=="all":
+                    q=Collections.objects.extra(where=["uuid in (select d.uuid  FROM cetaf_api_collections d cross join lateral jsonb_array_elements(d.data->'list_identifiers') o(obj) where (o.obj->>'type')=%s and  (o.obj->>'value')=%s)"], params=(protocol, value))
+                    resp=self.pager( q,  CollectionSerializer, page, page_size)
+                    return JsonResponse(self.filter_by_profile(resp, profile), safe=False)
+                elif version.isnumeric():
+                    q=Collections.objects.extra(where=["uuid in (select d.uuid  FROM cetaf_api_collections d cross join lateral jsonb_array_elements(d.data->'list_identifiers') o(obj) where (o.obj->>'type')=%s and  (o.obj->>'value')=%s) AND version=%s"], params=(protocol, value, int(version)))
+                    resp=self.pager( q,  CollectionSerializer, page, page_size)
+                    return JsonResponse(self.filter_by_profile(resp, profile), safe=False)
+                    
+        elif operation=="get_by_institution_id" and "protocol" in params and "values" in params:
             if len(params["protocol"])>0 and len(params["values"])>0:
                 protocol=unquote(params["protocol"][0])
                 value=unquote(params["values"][0])
@@ -266,7 +361,7 @@ class WSICollectionsView(APIViewCetaf):
                 result["result"]=resp
                 result["total"]={"sum_objects_count": obj_sum, "sum_types_count": type_sum}
                 return JsonResponse(result, safe=False)
-        if operation=="query_str" and "q" in params:
+        elif operation=="query_str" and "q" in params:
             if len(params["q"]):
                 p=unquote(params["q"][0])
                 q=Collections.objects.extra(where=["LOWER(data::varchar) ~ %s"], params=(p,))

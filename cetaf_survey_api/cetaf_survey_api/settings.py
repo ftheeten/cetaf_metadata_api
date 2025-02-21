@@ -20,12 +20,12 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-1l-hpeq2lpzr*ekxpfwoz=f%i1#!8k-t_a=n-@=ka5v-xt2bj8'
+SECRET_KEY = ''
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ["123.456.123.456", "127.0.0.1", "localhost"]
+ALLOWED_HOSTS = ["193.190.223.60", "127.0.0.1", "localhost"]
 
 
 # Application definition
@@ -79,16 +79,16 @@ DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql_psycopg2',
         'NAME': '',
-        'USER': 'postgres',
+        'USER': '',
         'PASSWORD': '',
         'HOST': '',
-        'PORT': '5432',
+        'PORT': '',
     }
 }
 
-ES_URL="http://localhost:9200/"
-ES_INDEX_INSTITUTIONS="cetaf_dissco_institutions_dev"
-ES_INDEX_COLLECTIONS="cetaf_dissco_collections_dev"
+ES_URL="https://darwin.naturalsciences.be/" #"http://localhost:9200/"
+ES_INDEX_INSTITUTIONS="cetaf_passport_institutions" #"cetaf_dissco_institutions_dev"
+ES_INDEX_COLLECTIONS="cetaf_passport_institutions" #"cetaf_dissco_collections_dev"
 
 # Password validation
 # https://docs.djangoproject.com/en/5.0/ref/settings/#auth-password-validators
@@ -166,18 +166,22 @@ LOGGING = {
 }
 ####
 CETAF_DATA_ADDRESS={
-        "institutions": "1gpZt4gX9qOXWY2fJNcI6XlnBgQDBsFOxyoFqofbymn8",
-        "collection_overview": "1iIZqWxmkqdx5VGQkXgngOoERO--lCWo64KbF75fJ5hM",
+        "institutions": "",
+        "collection_overview": "",       
+        "collection_root_folder":""  
+      
     }
     
 DEFAULT_QUERY_SIZE=10    
     
-GOOGLE_AUTH_FILE="json_file"
+GOOGLE_AUTH_FILE="/"
 GOOGLE_CLOUD_REFRESH_TOKEN=""
-GOOGLE_CLOUD_CLIENT_ID='xxxxxx.apps.googleusercontent.com'
-GOOGLE_CLOUD_SECRET="xxxxx"
+GOOGLE_CLOUD_CLIENT_ID=''
+GOOGLE_CLOUD_SECRET=""
 GOOGLE_CLOUD_REDIRECT_URI="https://developers.google.com/oauthplayground"
 GOOGLE_CLOUD_REFRESH_URL="https://www.googleapis.com/oauth2/v4/token"
+
+GOOGLE_SHEET_URL="https://docs.google.com/spreadsheets/d/"
 
 MAPPING_G_SHEET={
     "institutions": {
@@ -230,7 +234,7 @@ MAPPING_G_SHEET={
                 48: "chart_description",
                 49: "chart_url",
                 50: "chart_file",
-                51: "governing_and_exectutive_bodies",
+                51: "governing_and_executive_bodies",
                 52: "year_data"
              },
              58: "cetaf_membership",
@@ -267,6 +271,10 @@ MAPPING_G_SHEET={
             
             
         },
+        "array_fields":
+        {
+            3: {"name": "membership", "delimiter":"," }
+        },        
         "identifiers_api":
         {
             35: "ror"
@@ -342,7 +350,147 @@ APIS_SHEET={
                 {
                 }
     
-    }
+    }    
+}
+
+COLLECTION_ACRONYMS_MAPPING={
+    'AFP Algae, Fungi, Plants (old botany)':'AFP',
+    'Botany / Algae':'AFP-ALG',
+    'Botany / Bryophites':'AFP-BRY',
+    'Botany / Fungi and lichen':'AFP-FUN',
+    'Botany / others':'AFP-OTH',
+    'Botany / PGR':'AFP-PGR',
+    'Botany / Pteridophites':'AFP-PTE',
+    'Seeds':'AFP-SEE',
+    'Anthropology':'ANT',
+    'Anthtopology - AGR':'ANT-AGR',
+    'Archeology':'ANT-ARC',
+    'Human biology / human evolution':'ANT-BIO',
+    'Anthropology (non specified)':'ANT-NS',
+    'Anthropology (others)':'ANT-OTH',
+    'AST':'AST',
+    'AST-IMP':'AST-IMP',
+    'AST-MET':'AST-MET',
+    'AST-OTH':'AST-OTH',
+    'AST-RET':'AST-RET',
+    'Data':'DAT',
+    'Data / digital born':'DAT-DIB',
+    'Data / digitization':'DAT-DIG',
+    'Data / measurements':'DAT-MEA',
+    'Data / metadata':'DAT-MET',
+    'Data / observation':'DAT-OBS',
+    'Data / others':'DAT-OTH',
+    'ECO':'ECO',
+    'ECO-DNA':'ECO-DNA',
+    'ECO-OTH':'ECO-OTH',
+    'Geology':'GEO',
+    'GEO-ICE':'GEO-ICE',
+    'GEO-LGS':'GEO-LGS',
+    'Geology / Minerals':'GEO-MIN',
+    'GEO-MSS':'GEO-MSS',
+    'Geology - others':'GEO-OTH',
+    'Geology - petrology':'GEO-PET',
+    'Geology  sediments':'GEO-SED',
+    'Geology - soils':'GEO-SOI',
+    'Heritage sciences':'HER',
+    'Heritage sciences / documents':'HER-DOC',
+    'Heritage sciences / library':'HER-LIB',
+    'Heritage sciences / models':'HER-MOD',
+    'Heritage sciences / others':'HER-OTH',
+    'Heritage sciences / pictures':'HER-PIC',
+    'Heritage sciences / sounds':'HER-SOU',
+    'Invertebrates':'INV',
+    'Invertebrates / Arthropods - Archnids':'INV-ARA',
+    'Invertebrates / Cnidaria':'INV-CNI',
+    'Invertebrates / Crustaceans ':'INV-CRU',
+    'Invertebrates / Echinodermata':'INV-ECH',
+    'Invertebrates / Entomology':'INV-ENT',
+    'Invertebrates  / IGR':'INV-IGR',
+    'Invertebrates / Mollusca':'INV-MOL',
+    'Invertebrates / Others':'INV-OTH',
+    'Invertebrates / POR':'INV-POR',
+    'Micro-organisms':'MIC',
+    'Micro-organisms / ALG':'MIC-ALG',
+    'Micro-organisms / Bacteria':'MIC-BAC',
+    'Micro-organisms / EUK':'MIC-EUK',
+    'Micro-organisms / Others':'MIC-OTH',
+    'Micro-organisms / Phages':'MIC-PHA',
+    'Micro-organisms / Plasmids':'MIC-PLA',
+    'Micro-organisms / Protozoa':'MIC-PRO',
+    'Micro-organisms / Viruses':'MIC-VIR',
+    'Micro-organisms / Yeast and fungi':'MIC-YEA',
+    'Paleontology':'PAL',
+    'Paleontology / Botany':'PAL-AFP',
+    'Paleontology / Invertebrates':'PAL-INV',
+    'Paleontology / Non specified':'PAL-NS',
+    'Paleontology / Others':'PAL-OTH',
+    'Paleontology / Vertebrates':'PAL-VER',
+    'Zoology vertebrates':'VER',
+    'Zoology vertebrates / Amphibians':'VER-AMP',
+    'Zoology vertebrates / Birds':'VER-BIR',
+    'Zoology vertebrates / Fishes':'VER-FIS',
+    'Zoology vertebrates / Mammalogy':'VER-MAM',
+    'Zoology vertebrates / Non specified':'VER-NS',
+    'Zoology vertebrates / Others':'VER-OTH',
+    'Zoology vertebrates / Reptilians':'VER-REP',
+    'Zoology vertebrates / VGR' : 'VER-VGR',
+      'AFP': 'AFP',
+     'ALGAE':'AFP-ALG',
+     'ARACHNIDS':'INV-ARA',
+     'ASTROGEOLOGY-OTHERS': 'AST-OTH',
+     'BRYOPHYTES':'AFP-BRY',
+     'CNIDARIA-JELLYFISH-CORAL-ANEMONES': 'INV-CNI',
+     'CRUSTACEANS-AND-MYRIAPODS':'INV-CRU',
+     'ECHINODERMATA-STARFISH-SEA-URCHINS-SEA-CUCUMBERS':'INV-ECH',
+     'ECOLOGY-E-DNA':'ECO-DNA',
+     'ECOLOGY-OTHER-ITEMS':'ECO-OTH',
+     'ECOLOGY-UNSPECIFIED':'ECO-UNS',
+     'GEOLOGY-OTHER':'GEO-OTH',
+     'HERITAGE-DOCUMENTATION':'HER-DOC',
+     'HERITAGE-SOUNDS':'HER-SOU',
+     'INSECTS':'INV-ENT',
+     'INV-UNSPECIFIED':'INV-UNS',
+     'LIQUID-OR-GASEOUS': 'GEO-LGS',
+     'MACROFUNGI-LICHENS-AND-MYXOMYCETES':'AFP-FUN',
+     'MINERALS-AND-GEMS':'GEO-MIN',
+     'MIXED-GEOLOGY':'GEO-MIX',
+     'OTHER-BOTANY-OBJECTS':'AFP-OTH',
+     'OTHER-INVERTEBRATES-ZOOLOGY-OBJECTS':'INV-OTH',
+     'PALAEONTOLOGY-FOSSIL-INVERTEBRATES':'PAL-INV',
+     'PALAEONTOLOGY-FOSSIL-VERTEBRATES':'PAL-VER',
+     'PALAEONTOLOGY-OTHERS':'PAL-OTH',
+     'PALAEONTOLOGY-PLANTS-AND-FUNGI':'PAL-AFP',
+     'PALAEONTOLOGY-UNSPECIFIED':'PAL-UNS',
+     'PETROLOGY':'GEO-PET',
+     'PLANTS-GENETIC-RESOURCES':'AFP-DNA',
+     'PORIFERA-SPONGES':'INV-POR',
+     'PTERIDOPHYTES': '? PTERIDOPHYTES',
+     'SEDIMENTS':'GEO-SED',
+     'SEED-PLANTS':'AFP-SEE',
+     'SOILS':'GEO-SOI',
+     'TERRESTRIAL-FINDS-FALLS-E.G.-METEORITES': '? TERRESTRIAL-FINDS-FALLS-E.G.-METEORITES',
+     'TERRESTRIAL-IMPACTA' : '? TERRESTRIAL-IMPACTA',
+     'VERTEBRATES-AMPHIBIANS' :'VER-AMP',
+     'VERTEBRATES-BIRDS':'VER-BIR',
+     'VERTEBRATES-FISHES':'VER-FIS',
+     'VERTEBRATES-GENETIC-RESSOURCES':'VEAR-DNA',
+     'VERTEBRATES-MAMMALS':'VER-MAM',
+     'VERTEBRATES-OTHERS':'VER-OTH',
+     'VERTEBRATES-REPTILES':'VER-REP',
+     'VERTEBRATES-UNSPECIFIED':'VER-UNS',
+     'WATER-ICE':'GEO-ICE',
     
 }
+
+JSON_OUTPUT_FILTER_PROFILE={
+    "demo_filter": [
+               
+               "/data/data_list/data/main_metadata/description",
+               "/data/parent_institution_list_identifiers/@type=grscicoll",
+               "/data/parent_institution_list_identifiers/@type=grid"
+    
+    ]
+}
+
+INTERNAL_COLLECTION_LINK="https://naturalheritage.africamuseum.be/cetaf_survey_api/collections/?operation=get_by_id&protocol=cetaf&values="
 

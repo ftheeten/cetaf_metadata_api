@@ -12,6 +12,10 @@ import re
 from .read_excel import read_excel
 import traceback
 import sys
+from .helper import extract_field
+from collections import OrderedDict
+
+from .external_api_mapping.ext_mapping_grscicoll_institutions import ExtMappingGrSciCollInstitutions 
 #import numpy as np
 
 class GSCetafParser():
@@ -85,6 +89,7 @@ class GSCetafParser():
         self.load_collection_overview_logic(extra_apis)
     
     def parse_collection_df(self,inst_uuid, inst_idents, p_df, inst_id, modification_date):        
+        flag_returned=False
         returned={}
         p_df.columns = [re.sub('_+','_',re.sub(self.RE_SIMPLE_PATTERN, '_', x.lower())).strip('_').strip() for x in p_df.columns]
         print(p_df)
@@ -115,13 +120,15 @@ class GSCetafParser():
                     type_cert:None
                 if not obj_count is None or not type_count is None:
                     print(collection_id)
+                    flag_returned=True
                     returned[collection_id]={"inst_uuid": inst_uuid, "inst_idents": inst_idents, "local_id":  collection, "objects_count":obj_count , "objects_count_uncertainty_level": obj_uncert,"types_count":type_count , "types_count_uncertainty_level": type_cert }
                 else:
                     print("!!!!!!! no data found for "+collection_id)
-        return returned
+        return flag_returned, returned
         
     def load_collection_overview_logic(self, extra_apis):
         print("mapping coll overview")
+        
         institution_id_field=self.mapping_collection_overview["institution_id_fields"]["institution_name"]
         alternate_institution_name=self.mapping_collection_overview["institution_id_fields"]["alternate_institution_name"]
         appended_excel_summary=self.mapping_collection_overview["appended_excel"]["collection_size"]
@@ -161,9 +168,20 @@ class GSCetafParser():
                             df_detail, modification_date=excel_reader.get_excel( id_xls_detail, appended_excel_summary_sheet, p_header=0, skiprows=2)
                             print(df_detail)
                             print(modification_date)
-                            dict_collec=self.parse_collection_df(inst_uuid, inst_idents, df_detail,cetaf_id, modification_date )
-                            print(dict_collec)
-                            self.store_collection_in_db( dict_collec, inst_uuid,  modification_date,  preferred_fk_ident='cetaf')
+                            
+                            flag_returned, dict_collec=self.parse_collection_df(inst_uuid, inst_idents, df_detail,cetaf_id, modification_date )
+                            if flag_returned:
+                                print("RECORD!!!!!!!!!!!")
+                                print(dict_collec)
+                                self.store_collection_in_db( dict_collec, inst_uuid,  modification_date,  preferred_fk_ident='cetaf')
+                                #sys.exit()
+                            #print("=====================>")
+                            #print(dict_collec)
+                            #if "local_id" in dict_collec:
+                               
+                                
+                                #print(dict_collec["local_id"])
+                                #self.store_collection_in_db( dict_collec, inst_uuid,  modification_date,  preferred_fk_ident='cetaf')
            
             
                 
@@ -269,13 +287,16 @@ class GSCetafParser():
             returned.append(self.parse_array_path(path))
         return returned
     
-    def add_data_to_dict(self, p_dict, key, source, data, timestamp):
+    def add_data_to_inst_dict(self, p_dict, key, source, data, timestamp):
         if not key in p_dict:
-            p_dict[key]={}
+            p_dict[key]=OrderedDict()
             p_dict[key]["modification_date"]=timestamp
-            p_dict[key]["data"]=[]
-            
-        p_dict[key]["data"].append({"source": source, "data": data, "modification_date":timestamp})
+            p_dict[key]["data_list"]=[]
+        tmp=OrderedDict()
+        tmp["source"]=source
+        tmp["modification_date"]=timestamp
+        tmp["data"]=data
+        p_dict[key]["data_list"].append(tmp)
         if timestamp>p_dict[key]["modification_date"]:
             p_dict[key]["modification_date"]=timestamp
         return p_dict
@@ -291,7 +312,7 @@ class GSCetafParser():
             print("recurs")
             print(vid)
             if isinstance(vid, int):
-                if (p_row[vid] or "") !="":
+                if extract_field(p_row, vid, "") !="":
                     val[field]=p_row[vid]
             else:
                 val[vid]=self.go_recurs(p_row, p_mapping[vid])
@@ -302,10 +323,11 @@ class GSCetafParser():
         #data=df.to_json(orient="records")
         ##print(data)
         #all_vals={}
-        inst_array={}
-        coll_array={}
-        recorded_identifiers_all={}
-        normalized_identifiers={}
+        inst_array=OrderedDict()
+        coll_array=OrderedDict()
+        recorded_identifiers_all=OrderedDict()
+        normalized_identifiers=OrderedDict()
+        extra_data=OrderedDict()
         
         timestamp=mapping["timestamp"]
         timestamp_format=mapping["timestamp_format"] or '%Y-%m-%d %H:%M:%S'
@@ -319,7 +341,7 @@ class GSCetafParser():
             name_id=""            
             identifier_db_val=""
             for vid, name in identifier_db["fields"].items():
-                if row[vid]!=(identifier_db["null_value"] or ""):
+                if row[vid]!=extract_field(identifier_db,"null_value", ""):
                     identifier_db_val=row[vid]
                     break
             data_date=row[timestamp] or timestamp_default
@@ -329,11 +351,12 @@ class GSCetafParser():
             recorded_identifiers.append({"type":"cetaf", "value": cetaf_ident})
             recorded_identifiers.append({"type":"cetaf_complete", "value": identifier_db_val})
             for vid, name in identifier_db2.items():
-                if (row[vid] or "") !="":
+                if extract_field(row, vid, "") !="":
                     p_val= str(row[vid])
                     if name=="ror":
                         recorded_identifiers.append({"type":name, "value":p_val, "uri":"https://ror.org/"+p_val})
                     elif name=="grscicoll":
+                        """
                         tmp_url="https://api.gbif.org/v1/grscicoll/institution?code="+p_val
                         tmp_val=self.go_for_api_logic(tmp_url)
                         tmp_direct_uri="unknown"
@@ -348,11 +371,22 @@ class GSCetafParser():
                                     if len(tmp_val["results"])>0:
                                         tmp_key=tmp_val["results"][0]["key"]
                                         tmp_direct_uri="https://scientific-collections.gbif.org/institution/"+tmp_key                       
-                        recorded_identifiers.append({"type":name, "value":p_val, "uri":tmp_direct_uri})                        
+                        recorded_identifiers.append({"type":name, "value":p_val, "uri":tmp_direct_uri}) 
+                        """
+                        grcicoll, tmp_direct_uri=ExtMappingGrSciCollInstitutions.GetUUIDFromCode(p_val)
+                        if tmp_direct_uri is not None:
+                            #print(tmp_direct_uri)
+                            recorded_identifiers.append({"type":name, "value":p_val, "uri":tmp_direct_uri}) 
+                            #sys.exit()
+                        else:
+                            recorded_identifiers.append({"type":name, "value":p_val})                     
                     else:
                         recorded_identifiers.append({"type":name, "value":p_val})
             recorded_identifiers_all[identifier_db_val]=recorded_identifiers
             fields=mapping["fields"]
+            array_fields=mapping["array_fields"]
+            #print(array_fields)
+            #sys.exit()
             api_data=mapping["apis"]
             key_for_gescicoll=""
             for vid, name_field_tmp in identifiers.items():       
@@ -368,8 +402,31 @@ class GSCetafParser():
                     print(fields[vid])
                     val[vid]=self.go_recurs(row, fields[vid])
                     #sys.exit()
+            for vid, array_field in array_fields.items():
+                print(array_field)
+                name_field=array_field["name"]
+                delimiter=array_field["delimiter"]
+                if isinstance(vid, int):
+                    if (row[vid] or "") !="":
+                        tmp=row[vid] or ""
+                        tmp_arr=tmp.split(delimiter)
+                        tmp_arr = [s.strip() for s in tmp_arr]
+                        val[name_field]=tmp_arr
+                else:
+                    print("recurs")
+                    print(vid)
+                    print(fields[vid])
+                    tmp=self.go_recurs(row, fields[vid])
+                    tmp=tmp or ""
+                    tmp_arr=tmp.split(delimiter)
+                    tmp_arr = [s.strip() for s in tmp_arr]
+                    val[vid]=tmp_arr
+                #sys.exit()
             id_grscicoll_collections_from_institutions=None
-            for  api, vid in api_data.items():              
+            #print(api_data)
+            #sys.exit()
+            for  api, vid in api_data.items():
+                print("API="+api)
                 if api in self.extra_apis and api in p_extra_apis:
                     storage_mode="inst"
                     api_data={}
@@ -377,33 +434,67 @@ class GSCetafParser():
                     print("go for "+api)
                     key_api=None                    
                     if api=="grscicoll_institutions":
+                        storage_mode="inst"
                         key_api=row[vid]
-                    elif api=="grscicoll_collections_from_institutions":
+                    
+                    elif api=="grscicoll_collections_from_institutions":                    
+                        pass
+                        """
                         storage_mode="coll"
+                        #sys.exit()
                         key_api=id_grscicoll_collections_from_institutions
                         api_data_path= {"collectionName":"/results/collectionName", 
                                         "discipline": "/results/discipline", 
                                         "grscicoll_identifier":"/results/identifier:@identifierType=Collection GRSciColl key|identifierValue"
                                         }
-                    else:
+                        """                    else:
                         key_api=row[vid]
                     data=None
                     if key_api or "" !="":
+                        print(self.extra_apis[api]["endpoint"])
                         data=self.go_for_api(self.extra_apis[api]["endpoint"], key_api )
                     #print(data)
+                    
+                    #print(row)
+                    #sys.exit()
+                    val["extra_data"]={}
                     if data is not None and storage_mode=="inst" and identifier_db_val !="" :
                         #nio date in GrSciColl
-                        self.add_data_to_dict(inst_array, identifier_db_val, api, data, data_date)
-                    if api=="grscicoll_institutions" and data is not None:
-                        #print("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXx")
-                        ##print(data)
+                        if api=="grscicoll_institutions" and identifier_db_val !=""  and data is not None:
+                            grscicoll=ExtMappingGrSciCollInstitutions.GetMapping(val["extra_data"], data)
+                            print(grscicoll)
+                            
+                        inst_array=self.add_data_to_inst_dict(inst_array, identifier_db_val, api, data, data_date)
+                    """
+                    if api=="grscicoll_institutions" and identifier_db_val !=""  and data is not None:
+                        print("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXx")
+                        
+                        data.pop('offset', None)
+                        data.pop('limit', None)
+                        data.pop('endOfRecords', None)
+                        print(data)
+                        #sys.exit()
+                       
+                        grscicoll=ExtMappingGrSciCollInstitutions.GetMapping(val["extra_data"], data)
+                        print(grscicoll)
+                        sys.exit()
+                        
+                        
+                        #if "results" in data:
+                        #    sys.exit()
+                        
                         if "results" in data:
                             #print("TRY GRSICOLL ????????????????????????????????????????????????????????????????? " +key_api)
                             tmp_path=self.parse_array_path("/results:0/identifier:@identifierType=Institution GRSciColl key|identifierValue")
+                            print("=>")
                             print(tmp_path)
                             id_grscicoll_collections_from_institutions=self.parse_path(data["results"], tmp_path)
+                            print(id_grscicoll_collections_from_institutions)
+                            
+                            sys.exit()
                             #print("id_grscicoll_collections_from_institutions!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
                             #print(id_grscicoll_collections_from_institutions)
+                    """   
                     if api_data_path is not None:
                         #print(data)
                         print("PATHS=")
@@ -420,7 +511,7 @@ class GSCetafParser():
                             coll_array[identifier_db_val]={"source": "grscicoll", "results":v}                    
                 else:
                     print(api + " api has no endpoint in settings")
-            self.add_data_to_dict(inst_array, identifier_db_val, "survey", val, data_date)
+            inst_array=self.add_data_to_inst_dict(inst_array, identifier_db_val, "cetaf_survey", val, data_date)
             #all_vals[name_id]=val
             #if i==1:
             #   sys.exit()
@@ -435,7 +526,12 @@ class GSCetafParser():
             normalized_identifiers[inst]=identifiers
         print(inst_array)
         print("------------------------")
-        print(coll_array)
+        #TO DO
+        #if coll_array:
+        #    print(coll_array)
+        #    sys.exit()
+        print(inst_array)
+       
         self.store_inst_in_db(inst_array, normalized_identifiers, force)
         
         
@@ -457,7 +553,7 @@ class GSCetafParser():
                 inst=existing.first()   
                 return inst
   
-    def get_set_uuid_normalized_coll(self, uuid_inst, inst_identifiers, coll_id_cetaf, coll_id_all):
+    def get_set_uuid_normalized_coll(self, uuid_inst, inst_identifiers, coll_id_cetaf, local_identifier,  coll_id_all):
         print("TEST_NORMALIZED_COLL!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
         print(uuid_inst)
         print(coll_id_cetaf)
@@ -467,7 +563,7 @@ class GSCetafParser():
             print("create")
             inst_fk=InstitutionsNormalized.search_by_uuid(uuid_inst)
             if inst_fk is not None:
-                coll=CollectionsNormalized(fk_institution_normalized=inst_fk, uuid_institution_normalized= uuid_inst, data={"institution_list_identifiers": inst_identifiers, "list_identifiers": coll_id_all})
+                coll=CollectionsNormalized(fk_institution_normalized=inst_fk, uuid_institution_normalized= uuid_inst, local_identifier=local_identifier, data={"institution_list_identifiers": inst_identifiers, "list_identifiers": coll_id_all})
                 coll.save()
                 print(coll)
             #return inst.fpk, inst.uuid
@@ -485,14 +581,19 @@ class GSCetafParser():
     def store_inst_in_db(self, inst_array, normalized_identifiers,  force=False):
         print("=>")
         print(force)
+        #print(inst_array)
+        #sys.exit()
         versions = Institutions.objects.values('identifier').annotate(max_cetaf=Max('version'))
         dates = Institutions.objects.values('identifier').annotate(max_cetaf=Max('modification_date'))
-        fk_lists={}
+        fk_lists=OrderedDict()
         for key, list_ids in normalized_identifiers.items():           
             dict_ids={entry["type"]:entry["value"] for entry in list_ids}
             fk_inst=self.get_set_uuid_normalized_inst(dict_ids, list_ids)            
             fk_lists[key]=fk_inst            
         for key, data in inst_array.items():
+            print(key)
+            print(data)
+            
             version_v=(self.get_max(versions, "identifier", key) or 0)+1            
             #go=True
             last_date=self.get_max(dates, "identifier", key) or datetime.fromisoformat('0001-01-01 00:00:00')
@@ -500,18 +601,30 @@ class GSCetafParser():
             print(last_date.replace(tzinfo=None).isoformat())
             print("date_modification")
             print(data["modification_date"])
-            if "data" in data:
+            if "data_list" in data:
+                """
+                if len(extra_data)>0:
+                    print(data)
+                    print(extra_data)
+                    sys.exit()
+                    data["data"].update(extra_data)
+                """
                 if last_date.replace(tzinfo=None).isoformat()<data["modification_date"] or force:    
                     fk_inst=fk_lists[key]
+                    
                     inst=Institutions(identifier=key, fk_institution_normalized=fk_inst,  uuid_institution_normalized=fk_inst.uuid ,data=data, modification_date=data["modification_date"], current=True, version=version_v)
                     inst.save()
                     old_inst = Institutions.objects.filter( Q(identifier=key) & Q(version__lt=version_v) ).update(current=False)
                     print("saved")
+                    
                 else:
                     print("more recent in db")
-         
+            else:
+                print("error in data struct")
+                sys.exit()
     
     #source_uri=excel
+    #probably to remove 
     def store_collection_in_db(self, collection_list, inst_uuid, modification_date,  preferred_fk_ident='cetaf'):
         print('go_record')
         print("------------------------------")
@@ -531,7 +644,8 @@ class GSCetafParser():
                 coll_ids_all=[{"type":"cetaf", "value": coll_key }]
                 fk_inst=InstitutionsNormalized.search_by_uuid(inst_uuid)
                 if fk_inst is not None:
-                    fk_coll=self.get_set_uuid_normalized_coll(inst_uuid, inst_identifiers, coll_key, coll_ids_all)
+                    local_coll_id=coll_data["local_id"]
+                    fk_coll=self.get_set_uuid_normalized_coll(inst_uuid, inst_identifiers, coll_key, local_coll_id , coll_ids_all)
                     coll_norm_uuid=fk_coll.uuid
                     object_count=coll_data["objects_count"]
                     objects_count_uncertainty_level=coll_data["objects_count_uncertainty_level"]
@@ -543,10 +657,10 @@ class GSCetafParser():
                         version_v=(self.get_max(versions, "identifier", coll_key) or 0)+1
                         last_date=self.get_max(dates, "identifier", coll_key) or datetime.fromisoformat('0001-01-01 00:00:00')
                         if last_date.replace(tzinfo=None)<modification_date.replace(tzinfo=None):
-                            json_data={}
-                            data={}
-                            data["data"]={}
-                            data["data"]["description"]={}
+                            json_data=OrderedDict()
+                            data=OrderedDict()
+                            data["data"]=OrderedDict()
+                            data["data"]["description"]=OrderedDict()
                             go=False
                             if object_count is not None:
                                 if int(object_count)>0:
@@ -561,7 +675,7 @@ class GSCetafParser():
                             if go:
                                 data["institution_list_identifiers"]=inst_identifiers
                                 data["list_identifiers"]=coll_ids_all
-                                coll=Collections(uuid_institution_normalized=fk_inst.uuid, fk_institution_normalized=fk_inst, fk_collection_normalized =fk_coll,  identifier=coll_key, data=data, current=True, version=version_v )
+                                coll=Collections(uuid_institution_normalized=fk_inst.uuid, local_identifier=local_coll_id, fk_institution_normalized=fk_inst, fk_collection_normalized =fk_coll,  identifier=coll_key, data=data, current=True, version=version_v )
                                 coll.save()
                                 coll = Collections.objects.filter( Q(identifier=coll_key) & Q(version__lt=version_v) ).update(current=False)
                         else:
