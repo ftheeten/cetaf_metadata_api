@@ -266,14 +266,11 @@ class WSICollectionsView(APIViewCetaf):
         
     def filter_by_profile(self, data, profile=""):        
         if len(profile)>0:
-            if profile in settings.JSON_OUTPUT_FILTER_PROFILE:  
-                tmp=data["data"]
+            if profile in settings.JSON_OUTPUT_FILTER_PROFILE:                  
                 returned=[]
-                paths=settings.JSON_OUTPUT_FILTER_PROFILE[profile]
-                for d in tmp:
-                    parser_filter=JSONFilterPath(d, paths)
-                    returned.append(parser_filter.parse())
-                data["data"]=returned        
+                paths=settings.JSON_OUTPUT_FILTER_PROFILE[profile]                
+                parser_filter=JSONFilterPath(data, paths)
+                data=parser_filter.parse()                      
         return data
         
     def get(self, request, *args, **kwargs):        
@@ -392,20 +389,7 @@ class WSIGoogleSheetView(APIView):
                 google_object=GetGoogleCloudSheet(refresh_token, client_id, client_secret, redirect_uri, refresh_url)
                 df_cloud_excel=google_object.get_excel_as_panda(sheet_id)
                 data=df_cloud_excel.to_json(orient="records")
-        """
-        sheet_id=request.data.get("sheet_id","")
-        data["debug"]="a"
-        if sheet_id !="":
-            data["debug"]="b"
-            refresh_token = settings.GOOGLE_CLOUD_REFRESH_TOKEN
-            client_id = settings.GOOGLE_CLOUD_CLIENT_ID
-            client_secret = settings.GOOGLE_CLOUD_SECRET
-            redirect_uri = settings.GOOGLE_CLOUD_REDIRECT_URI
-            refresh_url = settings.GOOGLE_CLOUD_REFRESH_URL
-            google_object=GetGoogleCloudSheet(refresh_token, client_id, client_secret, redirect_uri, refresh_url)
-            df_cloud_excel=google_object.get_excel_as_panda(sheet_id)
-            data=df.to_json(orient="records")
-        """
+        
         #return  Response(data, status=status.HTTP_200_OK)
         return JsonResponse(data, safe=False)
     

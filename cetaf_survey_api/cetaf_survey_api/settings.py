@@ -484,11 +484,10 @@ COLLECTION_ACRONYMS_MAPPING={
 
 JSON_OUTPUT_FILTER_PROFILE={
     "demo_filter": [
-               
-               "/data/data_list/data/main_metadata/description",
-               "/data/parent_institution_list_identifiers/@type=grscicoll",
-               "/data/parent_institution_list_identifiers/@type=grid"
-    
+                "/pager",
+              "/data/@/data/data_list/@/data/main_metadata/description",
+               "/data/@/data/parent_institution_list_identifiers/@type=grscicoll",
+               "/data/@/data/parent_institution_list_identifiers/@type=grid"    
     ]
 }
 

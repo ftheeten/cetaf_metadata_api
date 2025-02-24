@@ -2,117 +2,123 @@
 import json
 
 #/element1/element2
-#/element1/element2/element3/@sibling_in_dict=value_sibling
+#/element1/element2/@/element3/@sibling_in_dict=value_sibling
+#/@ only to select whole array
+
+from copy import deepcopy
+
+#/element1/element2
+#/element1/element2/@/element3/@sibling_in_dict=value_sibling
+#/@ only to select whole array
 
 class JSONFilterPath():
     global_result_dict={}
     src_json={}
     src_path_list={}
-    
 
     def __init__(self, p_src_json, p_src_path_list):
         self.src_json=p_src_json
         self.src_path_list=p_src_path_list
         self.parse()
-   
+        
     def parse(self):
-        self.parse_logic(self.src_json, self.src_path_list, self.global_result_dict)
-        #self.global_result_dict[""]
-        #self.global_result_dict= {json.dumps(x, sort_keys=True):x for x in self.global_result_dict}
-        #if len(self.global_result_dict)>0:
-        #    self.global_result_dict=[self.global_result_dict[-1]]
-        return self.global_result_dict
-    
-    
-    #result => self.global_result_dict passed by reference    
-    def parse_logic(self,  data, path, result, type="dict"): # type : value or list
-        for p in path:
-            #print("°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°")
-            tmp_path=self.parse_array_path(p)
-            #print(tmp_path)
-            tmp_dict={}
-            self.parse_path_recurs(data, tmp_path, tmp_dict)
-            #print(tmp_dict)
-            #tmp_dict["parser"]="test"+p
-            if len(tmp_dict)>0:
-                result=merge(result,tmp_dict) #, strategy=Strategy.ADDITIVE )
+        pars_p=[list(filter(None,x.split("/"))) for x in self.src_path_list]
+        interm=[["@" if x2.startswith("@") else x2 for x2 in x1] for x1 in pars_p]
+        tmp=deepcopy(self.src_json)
+        #tmp mutable copy of a dict !
+        self.parse_dict_recurs(tmp, pars_p, interm)
+        return tmp
+        
+    def prepare_path(self, p_paths,p_cur_len ):
+        #cur_len=len(p_elem)
+        cut=list(filter(None,[ x[:p_cur_len]  if len(x)>=p_cur_len else None for x in p_paths]))
+        #print(cut)
+        return cut
+       
+    def fct_compare_path_indices(self, p_current, p_paths):
+        returned =[]
+        i=0
+        for p in p_paths:
+            if p==p_current:
+                returned.append(i)
+            i=i+1
+        return returned
+     
+    def parse_path_elem(self, p_elem):
+        p_type="path"
+        p_field=p_elem
+        p_val=None
+        test=p_elem.split("=")
+        if len(test)==2:
+            p_type="sibling"
+            p_field=test[0]
+            if len(p_field)>0:
+                p_field=p_field[1:]
+            p_val=test[1]
+        return p_type, p_field, p_val
+        
                 
-                #result=merge(result,tmp_dict, strategy=Strategy.ADDITIVE )
-            #print("RETURNED=")
-            #print(result)
-            #return ret
-
-    def parse_array_path(self, p_path_str):
-        p_path=p_path_str.split("/")
-        return  list(filter(lambda a: a or "" !="" ,p_path))
         
-    def parse_path_recurs(self,  data, path, result, incr=0, type="dict"):
-        print("=========>")
-        print("CALL "+str(incr))
-        print("path="+str(path))
-        #print("DATA=")
-        #print(data)
-        #print("RESULT=")
-        #print(result)
-        #print("GLOBAL=")
-        #print(GLOBAL_DICT)
-        
-        if len(path)>0:
-            first=path.pop(0)
-            print("FIRST="+first)
-            parse_first=first.split("=")    
-            if len(parse_first)==1:
-                print("CASE_1")
-                if isinstance(data, dict):
-                    if first in data:
-                        tmp=data[first]
-                        if len(path)==0:
-                            result[first]=tmp
-                        elif isinstance(tmp, list) :
-                            result[first]=[]
-                            tmp2={}
-                            result[first].append(tmp2)
-                            self.parse_path_recurs(data[first], path, result[first][-1], incr+1 )
-                        elif isinstance(tmp, dict) :
-                            result[first]={}
-                            self.parse_path_recurs(data[first], path, result[first], incr+1  )                        
+    def parse_dict_recurs(self,p_current, p_paths,  p_paths_no_attributes,  p_current_depth=0, p_parent=[]):
+        compare_path=self.prepare_path( p_paths, len(p_parent)+1)
+        compare_path_test_attr=self.prepare_path( p_paths_no_attributes, len(p_parent)+1)
+        if True:
+            if isinstance(p_current, list):
+                filter_after_loop=False
+                to_keep_list=[]
+                block_next=False
+                to_keep=[]
+                i=0
+                block=False
+                new_paths=[]
+                narrow_paths=False
+                for elem in p_current:
+                    if isinstance(elem, dict):
+                        original_elem=p_current[i]
+                        new_path=p_parent.copy()
+                        new_path.append("@")
+                        candidates=self.fct_compare_path_indices(new_path, compare_path)
+                        if len(candidates)>0:
+                            to_keep.append(i)
+                        else:
+                            candidates=self.fct_compare_path_indices(new_path, compare_path_test_attr)
+                            if len(candidates)>0:                        
+                                for id_test in candidates:
+                                    if not p_paths[id_test] in new_paths:
+                                        new_paths.append(p_paths[id_test])
+                                        narrow_paths=True
+                                    attr_direction=p_paths[id_test][p_current_depth]
+                                    if p_current_depth==(len(p_paths[id_test])-1):
+                                        block=True
+                                    p_type, p_field, p_val=self.parse_path_elem(attr_direction)
+                                    keep_elem=False                                
+                                    if p_field in elem:
+                                        if str(elem[p_field])==str(p_val):
+                                            to_keep.append(i)
+                    i=i+1
+                replacing_elems=[]
+                elements=list(range(0, len(p_current)))
+                to_delete=list(set(elements) - set(to_keep))
+                to_delete=list(reversed(to_delete))
+                for idel in to_delete:
+                    del p_current[idel]
+                if not block:
+                    if narrow_paths:
+                        p_paths= new_paths 
+                        p_paths_no_attributes=[["@" if x2.startswith("@") else x2 for x2 in x1] for x1 in p_paths]
+                    for elem in p_current:
+                        self.parse_dict_recurs(elem,  p_paths,  p_paths_no_attributes,  p_current_depth+1, new_path)
+            elif isinstance(p_current, dict):           
+                keys_to_delete=[]
+                for key, elem in p_current.items():
+                    new_path=p_parent.copy()
+                    new_path.append(key)
+                    candidates=self.fct_compare_path_indices(new_path, compare_path)
+                    if len(candidates)>0:
+                        candidates2=self.fct_compare_path_indices(new_path, p_paths_no_attributes)
+                        if len(candidates2)==0:
+                            self.parse_dict_recurs(elem,  p_paths,  p_paths_no_attributes,  p_current_depth+1, new_path)
                     else:
-                        print("NOT_IN_DATA")
-                elif isinstance(data, list):
-                    print("IS_LIST")
-                    go=False
-                    path.insert(0,first)
-                    for elem in data:
-                        if first in elem:
-                            print("111_ELEM_IN_LIST")
-                            if not go:
-                                result[first]=[]
-                                go=True
-                            if len(path)>0:
-                                result[first].append({})
-                                self.parse_path_recurs(elem, path, result[first][-1],  incr+1 )
-                            else:
-                                result[first].append(elem)
-                else:
-                    print("IS_VALUE")
-                    result[first]=tmp
-            elif len(parse_first)==2 :
-                print("CASE_2")
-                field=parse_first[0]
-                value=parse_first[1]
-                if field.startswith("@") and isinstance(data, list) and len(field)>1:
-                    print("CASE_2_1") 
-                    #print(data)
-                    field=field[1:]
-                    print(field)
-                    for elem in data:
-                        go=False
-                        if field in elem:
-                            if elem[field]==value:
-                                print("found")
-                                if not go:
-                                    result[field]=[]
-                                    go=True
-                                result[field].append(elem)
-        
-            
+                        keys_to_delete.append(key)
+                for key in keys_to_delete:
+                    p_current.pop(key)
