@@ -94,6 +94,7 @@ class cetaf_api_institutions_normalized{
        -pk
        -uuid
        -fk_institution_normalized: int
+       -fk_parent_collections: int
        -uuid_institution_normalized
        -cetaf_identifier
        -data:jsonb
@@ -125,6 +126,7 @@ cetaf_api_collections_normalized-->cetaf_api_institutions_normalized
 cetaf_api_collections-->cetaf_api_institutions_normalized
 cetaf_api_collections-->cetaf_api_collections_normalized
 cetaf_api_collections-->cetaf_api_import_run
+cetaf_api_collections-->cetaf_api_collections
   ```
 ## Current access points (dev) :
 So far (nov. 2024 only the institutions and collections parts are functionnal) 
