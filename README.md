@@ -52,10 +52,11 @@ flowchart LR;
 Linked Django commands (via shell at the root of the project - **manage.py** level)
 1. *Command parser 1* and
 2. *Command parser 2*
-   1. **python3 manage.py loadindb --extra_apis  institution_overview** (load institutions from Google Sheet, by default do nothing if more recent data in DB)
-   2. **python3 manage.py loadindb --extra_apis  institution_overview --force true** (load institutions from Google Sheet, force Google sheet data as being the most recent)
-   3. **python manage.py loadindb --extra_apis  grscicoll_institutions grscicoll_collections_from_institutions** (loads institutions from GoogleSheet, if the GRSciColl ID is given get metadata from GriSciColl (grscicoll_institutions) and  forces the cration of the declared collections (grscicoll_collections_from_institutions)
-   4. **python3 manage.py loadindb --extra_apis  collection_overview** create collections from the summary wssheet of the institutions
+   1. **python3 manage.py loadindb_institutions --extra_apis  institution_overview** (load institutions from Google Sheet, by default do nothing if more recent data in DB)
+   2. **python3 manage.py loadindb_institutions --extra_apis  institution_overview --force true** (load institutions from Google Sheet, force Google sheet data as being the most recent)
+   3. **python manage.py loadindb_institutions --extra_apis  grscicoll_institutions grscicoll_collections_from_institutions** (loads institutions from GoogleSheet, if the GRSciColl ID is given get metadata from GriSciColl (grscicoll_institutions) and  forces the cration of the declared collections (grscicoll_collections_from_institutions)
+   4. **python3 manage.py loadindb_institutions --extra_apis  collection_overview** create collections from the summary Google sheet of the institutions
+   5. **python3 manage.py loadindb_collections**  create collections from uploaded collections sheets (see **settings.CETAF_DATA_ADDRESS** for params)
 3. *Command parser 3*
    1.  **python manage.py copy_es --target_index institutions** pushes institutions to target ElasticSearch
    2.  **python manage.py copy_es --target_index collections** pushes collections to target ElasticSearch    
@@ -63,12 +64,22 @@ Linked Django commands (via shell at the root of the project - **manage.py** lev
   ## Model     
   ```mermaid
   classDiagram
+class cetaf_api_import_run{
+       -pk
+       -institutions_added:jsonb
+       -institutions_deleted:jsonb
+       -collections_added:jsonb
+       -collections_deleted:jsonb
+       -harvesting_date:timestamp
+}
 class cetaf_api_institutions_normalized{
        -pk
        -uuid
        -data:jsonb (identifier list)
        -creation_date:timestamp
        -modification_date:timestamp
+       -version:int
+       -current:boolean
   }
  class cetaf_api_collections_normalized{
        -pk       
@@ -109,9 +120,11 @@ class cetaf_api_collections{
 
 
 cetaf_api_institutions-->cetaf_api_institutions_normalized
+cetaf_api_institutions-->cetaf_api_import_run
 cetaf_api_collections_normalized-->cetaf_api_institutions_normalized
 cetaf_api_collections-->cetaf_api_institutions_normalized
 cetaf_api_collections-->cetaf_api_collections_normalized
+cetaf_api_collections-->cetaf_api_import_run
   ```
 ## Current access points (dev) :
 So far (nov. 2024 only the institutions and collections parts are functionnal) 
