@@ -106,6 +106,8 @@ class cetaf_api_institutions_normalized{
 class cetaf_api_collections{
        -pk
        -uuid
+       -fk_to_parent_collection: int
+       -fk_to_child_collections: int
        -fk_institution_normalized: int
        -uuid_institution_normalized
        -fk_collection_normalized: int
